@@ -1,0 +1,32 @@
+.Forms{
+    font-size: 25px;
+    /* align-items: center; */
+    align-content: center;
+    
+    
+}
+form{
+    
+    
+    margin-left: 20px;
+    display:grid;
+    justify-content: center
+}
+select{
+    font-size: 30px;
+    border-radius: 20px;
+    padding: 10px 10px 10px 20px ;
+    }
+button{
+    border-block-width: 30px;
+    padding: 10px 10px 10px 20px ;
+    border-radius: 30px;
+    font-size: 30px;
+    border: none;
+}
+input{
+    font-size: 20px;
+    border-radius: 30px;
+    padding: 10px 10px 10px 20px ;
+    text-align: center;
+}

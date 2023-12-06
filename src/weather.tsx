@@ -1,5 +1,9 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import "./weather.css"
+
+
+
 
 interface WeatherData {
   cityName: string;
@@ -15,21 +19,19 @@ interface WeatherData {
     name: string;
     region: string;
     country: string;
+    lat:number;
+    lon:number;
+    url:string;
   }[];
-  pastWeather?: {
-    date: string;
-    temperature: number;
-    weather: string;
-  }[];
-}
+  pastWeather?: any[]; // Add any other fields you need for past weather data
+  timeZone?: string; // Add the timeZone field
 
+}
 interface ErrorResponse {
   error: {
-    code: number;
     message: string;
   };
 }
-
 const WeatherApp: React.FC = () => {
   const [cityName, setCityName] = useState<string>('');
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
@@ -48,17 +50,7 @@ const WeatherApp: React.FC = () => {
   const handleFormSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     try {
-      const apiUrl =
-        endpoint === 'ip.json'
-          ? `https://api.weatherapi.com/v1/${endpoint}?key=${apiKey}`
-          : `https://api.weatherapi.com/v1/${endpoint}?key=${apiKey}&q=${cityName}`;
-
-      if (endpoint === 'search.json' && !cityName) {
-        setError('City name is required for the search.');
-        setWeatherData(null);
-        return;
-      }
-
+      const apiUrl = `https://api.weatherapi.com/v1/${endpoint}?key=${apiKey}&q=${cityName}`;
       const response = await axios.get(apiUrl);
 
       if ('error' in response.data) {
@@ -73,7 +65,7 @@ const WeatherApp: React.FC = () => {
           weather: '',
         };
 
-        if (endpoint === 'current.json' || endpoint === 'ip.json') {
+        if (endpoint === 'current.json' || endpoint === 'forecast.json') {
           const { current } = response.data;
           weatherInfo = {
             ...weatherInfo,
@@ -81,7 +73,9 @@ const WeatherApp: React.FC = () => {
             humidity: current.humidity,
             weather: current.condition.text,
           };
-        } else if (endpoint === 'forecast.json') {
+        }
+
+        if (endpoint === 'forecast.json') {
           const { forecast } = response.data;
           if (forecast && forecast.forecastday) {
             const forecastData = forecast.forecastday.map((day: any) => ({
@@ -91,39 +85,38 @@ const WeatherApp: React.FC = () => {
             }));
             weatherInfo = { ...weatherInfo, forecast: forecastData };
           }
-        } else if (endpoint === 'search.json') {
-          const { search_results } = response.data;
-          if (search_results && search_results.length > 0) {
-            const searchResults = search_results.map((result: any) => ({
+        }
+
+        if (endpoint === 'current.json' || endpoint === 'forecast.json' || endpoint === 'timezone.json') {
+          const { search } = response.data;
+          if (search && search.length > 0) {
+            const searchResults = search.map((result: any) => ({
               name: result.name,
               region: result.region,
               country: result.country,
             }));
             weatherInfo = { ...weatherInfo, searchResults: searchResults };
-          } else {
-            setError('No search results found for the provided city.');
-            setWeatherData(null);
-            return;
           }
-        } else if (endpoint === 'history.json' || endpoint === 'future.json') {
-          const { forecast } = response.data;
-          if (forecast && forecast.forecastday) {
-            const pastWeatherData = forecast.forecastday.map((day: any) => ({
-              date: day.date,
-              temperature: day.day.avgtemp_c,
-              weather: day.day.condition.text,
+        }
+        if (endpoint === 'search.json' || endpoint === 'forecast.json' || endpoint === 'timezone.json') {
+          const search = response.data;  // Use a more generic name
+          if (search && search.length > 0) {
+            const searchResults = search.map((result: any) => ({
+              name: result.name,
+              region: result.region,
+              country: result.country,
+              lat: result.lat,
+              lon: result.lon,
+              url: result.url,
             }));
-            weatherInfo = { ...weatherInfo, pastWeather: pastWeatherData };
+            weatherInfo = { ...weatherInfo, searchResults: searchResults };
           }
-        } else if (endpoint === 'ip.json' || endpoint === 'current.json') {
-          const { forecast } = response.data;
-          if (forecast && forecast.forecastday) {
-            const pastWeatherData = forecast.forecastday.map((day: any) => ({
-              date: day.date,
-              temperature: day.day.avgtemp_c,
-              weather: day.day.condition.text,
-            }));
-            weatherInfo = { ...weatherInfo, pastWeather: pastWeatherData };
+        }
+
+        if (endpoint === 'timezone.json') {
+          const { location } = response.data;
+          if (location) {
+            weatherInfo = { ...weatherInfo, timeZone: location.tz_id };
           }
         }
 
@@ -132,82 +125,81 @@ const WeatherApp: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching weather data:', error);
-      setError('An error occurred while fetching weather data.');
+      setError(`An error occurred while fetching weather data for ${endpoint}.`);
       setWeatherData(null);
     }
+    
   };
 
   return (
-    <div>
+    
+    <div className='Forms'>
       <form onSubmit={handleFormSubmit}>
         <label>
-          Enter City:
+         <h3> Enter City </h3>
           <input type="text" value={cityName} onChange={handleInputChange} />
         </label>
-        <label>
-          Select Endpoint:
+       <p> <label>
+         <h3> Select Endpoint</h3>
           <select value={endpoint} onChange={handleEndpointChange}>
             <option value="current.json">Current Weather</option>
             <option value="forecast.json">Forecast</option>
+            <option value="timezone.json">Time Zone</option>
             <option value="search.json">Search</option>
-            <option value="history.json">History</option>
-            <option value="future.json">Future</option>
-            <option value="ip.json">IP Location</option>
           </select>
-        </label>
+        </label></p>
         <button type="submit">Get Weather</button>
       </form>
 
       {error && <div>Error: {error}</div>}
 
       {weatherData && (
-        <div>
-          <h2>WeatherApp</h2>
-          <h3>City: {weatherData.cityName}</h3>
-          <h3>Temperature: {weatherData.temperature}°C</h3>
-          <h3>Humidity: {weatherData.humidity}%</h3>
-          <h3>Weather: {weatherData.weather}</h3>
+  <div>
+    <h2>WeatherApp</h2>
+    {endpoint === 'search.json' && weatherData.searchResults && (
+  <div>
+    <h3>Search Results:</h3>
+    
+    {weatherData.searchResults.map((result, endpoint) => (
+      <div key={endpoint}>
+        <p>Name: {result.name}</p>
+        <p>Region: {result.region}</p>
+        <p>Country: {result.country}</p>
+        <p>lat: {result.lat}</p>
+        <p>lon: {result.lon}</p>
+        <p>url: {result.url}</p>
+        
+      </div>
+    ))}
+  </div>
+)}
+    {endpoint === 'current.json' && (
+      <div>
+        <h3>Current Weather:</h3>
+        <p>Temperature: {weatherData.temperature}°C</p>
+        <p>Humidity: {weatherData.humidity}</p>
+        <p>Weather: {weatherData.weather}</p>
+      </div>
+    )}
 
-          {weatherData.forecast && (
-            <div>
-              <h3>Forecast:</h3>
-              {weatherData.forecast.map((day) => (
-                <div key={day.date}>
-                  <p>Date: {day.date}</p>
-                  <p>Temperature: {day.temperature}°C</p>
-                  <p>Weather: {day.weather}</p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {weatherData.searchResults && (
-            <div>
-              <h3>Search Results:</h3>
-              {weatherData.searchResults.map((result, index) => (
-                <div key={index}>
-                  <p>Name: {result.name}</p>
-                  <p>Region: {result.region}</p>
-                  <p>Country: {result.country}</p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {weatherData.pastWeather && (
-            <div>
-              <h3>Past Weather:</h3>
-              {weatherData.pastWeather.map((day) => (
-                <div key={day.date}>
-                  <p>Date: {day.date}</p>
-                  <p>Temperature: {day.temperature}°C</p>
-                  <p>Weather: {day.weather}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+    {endpoint === 'timezone.json' && (
+      <h3>Time Zone: {weatherData.timeZone}</h3>
+    )}
+     
+    {weatherData.forecast && (
+      <div>
+        <h3>Forecast:</h3>
+        {weatherData.forecast.map((day) => (
+          <div key={day.date}>
+            <p>Date: {day.date}</p>
+            <p>Temperature: {day.temperature}°C</p>
+            <p>Weather: {day.weather}</p>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+)}
     </div>
   );
 };
